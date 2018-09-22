@@ -5,7 +5,7 @@ const sqlite3 = require(modules_path + "sqlite3").verbose();
 
 let db;
 
-const dbpath = "../db/users.db";
+const dbPath = "../db/users.db";
 
 const TABLE_NAME_USERS = "users";
 
@@ -19,7 +19,7 @@ let line = [];
 let userList = [];
 
 (function dbInit() {
-  db = new sqlite3.Database(dbpath);
+  db = new sqlite3.Database(dbPath);
 
   db.serialize(function() {
     db.run(
@@ -37,6 +37,12 @@ let userList = [];
     );
   });
 })();
+
+let timerCheck = setInterval(function () {
+    if(!timeCheck()) {
+      if(line.length !== 0) line.length = [];
+    }
+}, 60 * 1000);
 
 function getTime() {
   return {
