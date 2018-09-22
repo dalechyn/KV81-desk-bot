@@ -1,8 +1,9 @@
-var line = [];
-//DB Definition
-const sqlite3 = require("sqlite3").verbose();
+let modules_path = "../node_modules/";
 
-var db;
+//DB Definition
+const sqlite3 = require(modules_path + "sqlite3").verbose();
+
+let db;
 
 const dbpath = ".././db/users.db";
 
@@ -12,6 +13,11 @@ const KEY_COL_UID = "uid";
 const KEY_COL_NAME = "name";
 const KEY_COL_ADMIN = "admin";
 //
+let timezone = 3;
+
+let line = [];
+let userList = [];
+
 function dbInit() {
   db = new sqlite3.Database(dbpath);
 
@@ -34,42 +40,46 @@ function dbInit() {
 
 dbInit();
 
-var funcs = {};
-
-var userList = [];
+function getTime() {
+  return {
+    hours: new Date().getUTCHours() + timezone,
+    minutes: new Date().getUTCMinutes(),
+    seconds: new Date().getUTCSeconds(),
+    toMinutes: (new Date().getUTCHours() + timezone) * 60 + new Date().getUTCMinutes()
+  }
+}
 
 function getList() {
-  var list = "";
-  for (var i = 0; i < line.length; i++) {
+  let list = "";
+  for (let i = 0; i < line.length; i++) {
     list = list + `Номер: ${i + 1}, Имя: ${getNameByUID(line[i])} \n`;
   }
-  if (list == "") {
-    list = `Очередь пустая`;
+  if (list === "") {
+    list = `Очередь пустая.`;
   }
   return list;
 }
 
 function findUserByUID(uid) {
   for (const A of userList) {
-    if (A.uid == uid) return A;
+    if (A.uid === uid) return A;
   }
 }
 
 function userExists(uid) {
   for (const A of userList) {
-    if (A.uid == uid) return true;
+    if (A.uid === uid) return true;
   }
   return false;
 }
 
 function start(uid, username) {
-  var result;
+  let result;
   if (!userExists(uid)) {
     db.run(
       `INSERT INTO ${TABLE_NAME_USERS} ( ${KEY_COL_UID}, ${KEY_COL_NAME}, ${KEY_COL_ADMIN} ) VALUES ( '${uid}', '${username}', 0 )`,
       function(err) {
         if (err) return console.log(err.message);
-        console.log("successfull");
       }
     );
     db.close();
@@ -77,37 +87,49 @@ function start(uid, username) {
       name: username,
       uid: uid
     });
-    result = `Привет, ${username}! По всему видимому ты ещё не пользовался этим ботом.\nПомощь по командам - /help\nУдачи!`;
+    result = `Привет, ${username}! По всему видимому ты ещё не пользовался этим ботом.\nПомощь по командам - /help.\nУдачи!`;
   } else {
     if (findUserByUID(uid).name !== username)
       findUserByUID(uid).name = username;
-    result = `Давно не виделись, ${username}`;
+    result = `Давно не виделись, ${username}!`;
   }
-  console.log(userList);
   return result;
 }
 
 function help() {
-  return `/start - зарегистрироваться в боте\n/in - занять очередь\n/out - выйти из очереди\n/getList - посмотреть очередь к доске`;
+  return `/in - занять очередь;\n/out - выйти из очереди;\n/getList - посмотреть очередь к доске.`;
 }
 
 function getNameByUID(uid) {
   for (const A of userList) {
-    if (A.uid == uid) {
+    if (A.uid === uid) {
       return A.name;
     }
   }
 }
 
+function timeCheck(){
+  let time = getTime().toMinutes;
+  return (time >= 510 && time <= 605) ||
+    (time >= 625 && time <= 720) ||
+    (time >= 740 && time <= 835) ||
+    (time >= 855 && time <= 950) ||
+    (time >= 970 && time <= 1065);
+}
+
 function getInLine(uid) {
-  var result;
+  let result;
 
   if (userExists(uid)) {
-    if (!line.includes(uid)) {
-      line.push(uid);
-      result = `Ваш номер в очереди - ${line.length}`;
+    if(timeCheck()) {
+      if (!line.includes(uid)) {
+        line.push(uid);
+        result = `Ваш номер в очереди - ${line.length}.`;
+      } else {
+        result = `Вы уже зарегистрированы в очереди.`;
+      }
     } else {
-      result = `Вы уже зарегистрированы в очереди`;
+      result = `Сейчас нет пар, поэтому вы не можете занять очередь.`
     }
   } else {
     result = `Похоже вы не зарегистрированы в боте. Введите команду /start.`;
@@ -122,8 +144,8 @@ function popFirst() {
 }
 
 function getJSONForInline() {
-  var jsonArr = [];
-  for (var i = 0; i < line.length; i++) {
+  let jsonArr = [];
+  for (let i = 0; i < line.length; i++) {
     jsonArr.push([
       {
         text: i + 1 + " - " + findUserByUID(line[i]).name,
@@ -147,7 +169,7 @@ function isAdmin(uid) {
 }
 
 function popByUIDAdmin(uid) {
-  var result;
+  let result;
 
   if (isAdmin(uid)) {
     if (line.length !== 0) {
@@ -168,9 +190,9 @@ function popByUID(uid) {
 
   if (index !== -1) {
     line.splice(index, 1);
-    result = `Вы успешно вышли из очереди`;
+    result = `Вы успешно вышли из очереди.`;
   } else {
-    result = `Вы не зарегистрированы в очереди`;
+    result = `Вы не зарегистрированы в очереди.`;
   }
   return result;
 }
