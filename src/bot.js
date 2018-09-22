@@ -1,5 +1,6 @@
 var core = require("./core.js");
-require("dotenv").config();
+var modules_path = "../node_modules/";
+require(modules_path + "dotenv").config();
 
 var TelegramBot = require("node-telegram-bot-api"),
   telegram = new TelegramBot(process.env.BOT_TOKEN, {

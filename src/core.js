@@ -4,7 +4,7 @@ const sqlite3 = require("sqlite3").verbose();
 
 var db;
 
-const dbpath = "./db/users.db";
+const dbpath = ".././db/users.db";
 
 const TABLE_NAME_USERS = "users";
 

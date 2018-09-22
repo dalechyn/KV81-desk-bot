@@ -35,3 +35,7 @@ package.json
 
 #test file
 test.js
+
+\.idea/
+
+db/users\.db
