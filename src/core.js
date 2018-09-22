@@ -18,7 +18,7 @@ let timezone = 3;
 let line = [];
 let userList = [];
 
-function dbInit() {
+(function dbInit() {
   db = new sqlite3.Database(dbpath);
 
   db.serialize(function() {
@@ -36,9 +36,7 @@ function dbInit() {
       }
     );
   });
-}
-
-dbInit();
+})();
 
 function getTime() {
   return {
