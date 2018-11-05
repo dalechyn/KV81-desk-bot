@@ -40,7 +40,9 @@ let userList = [];
 
 let timerCheck = setInterval(function () {
     if(!timeCheck()) {
-      if(line.length !== 0) line.length = [];
+      if(line.length !== 0) {
+        line.length = [];
+      }
     }
 }, 60 * 1000);
 
@@ -79,6 +81,8 @@ function userExists(uid) {
 
 function start(uid, username) {
   let result;
+  console.log(username);
+  console.log(uid);
   if (!userExists(uid)) {
     db.run(
       `INSERT INTO ${TABLE_NAME_USERS} ( ${KEY_COL_UID}, ${KEY_COL_NAME}, ${KEY_COL_ADMIN} ) VALUES ( '${uid}', '${username}', 0 )`,
@@ -114,11 +118,11 @@ function getNameByUID(uid) {
 
 function timeCheck(){
   let time = getTime().toMinutes;
-  return (time >= 510 && time <= 605) ||
-    (time >= 625 && time <= 720) ||
-    (time >= 740 && time <= 835) ||
-    (time >= 855 && time <= 950) ||
-    (time >= 970 && time <= 1065);
+  return (time >= 450 && time <= 545) ||
+    (time >= 565 && time <= 660) ||
+    (time >= 680 && time <= 765) ||
+    (time >= 795 && time <= 870) ||
+    (time >= 910 && time <= 1005);
 }
 
 function getInLine(uid) {
