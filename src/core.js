@@ -1,223 +1,192 @@
-let modules_path = "../node_modules/";
+import sqlite3 from 'sqlite3'
+import sqldb from './sql-db'
 
-//DB Definition
-const sqlite3 = require(modules_path + "sqlite3").verbose();
+import { queue } from './misc'
 
-let db;
+const { col, dbPath, dbCreate, dbGet, dbInsert } = sqldb
 
-const dbPath = "../db/users.db";
+const userList = []
 
-const TABLE_NAME_USERS = "users";
+const db = new sqlite3.Verbose().Database(dbPath)
 
-const KEY_COL_UID = "uid";
-const KEY_COL_NAME = "name";
-const KEY_COL_ADMIN = "admin";
-//
-let timezone = 3;
-
-let line = [];
-let userList = [];
-
-(function dbInit() {
-  db = new sqlite3.Database(dbPath);
-
-  db.serialize(function() {
-    db.run(
-      `CREATE TABLE IF NOT EXISTS ${TABLE_NAME_USERS}(${KEY_COL_UID} integer primary key, ${KEY_COL_NAME} text, ${KEY_COL_ADMIN} int(1))`
-    );
-    db.each(
-      `SELECT ${KEY_COL_UID} ${KEY_COL_UID}, ${KEY_COL_NAME} ${KEY_COL_NAME}, ${KEY_COL_ADMIN} ${KEY_COL_ADMIN} FROM ${TABLE_NAME_USERS}`,
-      (err, row) => {
-        userList.push({
-          name: row[KEY_COL_NAME],
-          uid: row[KEY_COL_UID],
-          admin: row[KEY_COL_ADMIN]
-        });
-      }
-    );
-  });
-})();
-
-let timerCheck = setInterval(function () {
-    if(!timeCheck()) {
-      if(line.length !== 0) {
-        line.length = [];
-      }
+db.serialize(function() {
+  db.run(dbCreate)
+  db.each(dbGet, (err, row) => {
+    if (err) {
+      /* I am too lazy to create file logging */
+      console.log(err)
+      return
     }
-}, 60 * 1000);
+    userList.push({
+      name: row[col.name],
+      uid: row[col.uid],
+      admin: row[col.admin]
+    })
+  })
+})
 
-function getTime() {
-  return {
-    hours: new Date().getUTCHours() + timezone,
-    minutes: new Date().getUTCMinutes(),
-    seconds: new Date().getUTCSeconds(),
-    toMinutes: (new Date().getUTCHours() + timezone) * 60 + new Date().getUTCMinutes()
-  }
-}
+setInterval(() => {
+  if (!classesRun() && !queue.isEmpty()) queue.clear()
+}, 60 * 1000)
 
 function getList() {
-  let list = "";
-  for (let i = 0; i < line.length; i++) {
-    list = list + `Номер: ${i + 1}, Имя: ${getNameByUID(line[i])} \n`;
-  }
-  if (list === "") {
-    list = `Очередь пустая.`;
-  }
-  return list;
+  if (queue.isEmpty()) return 'Очередь пуста'
+  let list = ''
+  queue.each(
+    (val, i) => (list += `Номер: ${i + 1}, Имя: ${getNameByUID(val)}`)
+  )
+  return list
 }
 
 function findUserByUID(uid) {
   for (const A of userList) {
-    if (A.uid === uid) return A;
+    if (A.uid === uid) return A
   }
 }
 
 function userExists(uid) {
   for (const A of userList) {
-    if (A.uid === uid) return true;
+    if (A.uid === uid) return true
   }
-  return false;
+  return false
 }
 
-function start(uid, username) {
-  let result;
-  console.log(username);
-  console.log(uid);
+function start(uid, name) {
+  let result
   if (!userExists(uid)) {
-    db.run(
-      `INSERT INTO ${TABLE_NAME_USERS} ( ${KEY_COL_UID}, ${KEY_COL_NAME}, ${KEY_COL_ADMIN} ) VALUES ( '${uid}', '${username}', 0 )`,
-      function(err) {
-        if (err) return console.log(err.message);
-      }
-    );
-    db.close();
+    db.run(dbInsert(uid, name), function(err) {
+      if (err) return console.log(err.message)
+    })
+    db.close()
     userList.push({
-      name: username,
+      name: name,
       uid: uid
-    });
-    result = `Привет, ${username}! По всему видимому ты ещё не пользовался этим ботом.\nПомощь по командам - /help.\nУдачи!`;
+    })
+    result = `Привет, ${name}! По всему видимому ты ещё не пользовался этим ботом.\nПомощь по командам - /help.\nУдачи!`
   } else {
-    if (findUserByUID(uid).name !== username)
-      findUserByUID(uid).name = username;
-    result = `Давно не виделись, ${username}!`;
+    const user = findUserByUID(uid)
+    user.name = user.name === name ? user.name : name
+    result = `Давно не виделись, ${name}!`
   }
-  return result;
+  return result
 }
 
 function help() {
-  return `/in - занять очередь;\n/out - выйти из очереди;\n/getList - посмотреть очередь к доске.`;
+  return `/in - занять очередь;\n/out - выйти из очереди;\n/getList - посмотреть очередь к доске.`
 }
 
 function getNameByUID(uid) {
   for (const A of userList) {
     if (A.uid === uid) {
-      return A.name;
+      return A.name
     }
   }
 }
 
-function timeCheck(){
-  let time = getTime().toMinutes;
-  return (time >= 450 && time <= 545) ||
-    (time >= 565 && time <= 660) ||
-    (time >= 680 && time <= 765) ||
-    (time >= 795 && time <= 870) ||
-    (time >= 910 && time <= 1005);
+function classesRun() {
+  const date = new Date()
+  const minutes = date.getHours() * 60 + date.getMinutes()
+  /*
+    I left the number's to increase readability.
+    However Node will optimize and calculate this values
+  */
+  return (
+    (minutes >= 8 * 60 + 30 && minutes <= 10 * 60) ||
+    (minutes >= 10 * 60 + 25 && minutes <= 11 * 60 + 55) ||
+    (minutes >= 12 * 60 + 20 && minutes <= 13 * 60 + 50) ||
+    (minutes >= 14 * 60 + 15 && minutes <= 15 * 60 + 45) ||
+    (minutes >= 16 * 60 + 10 && minutes <= 17 * 60 + 40)
+  )
 }
 
 function getInLine(uid) {
-  let result;
+  let result
 
-  if (userExists(uid)) {
-    if(timeCheck()) {
-      if (!line.includes(uid)) {
-        line.push(uid);
-        result = `Ваш номер в очереди - ${line.length}.`;
-      } else {
-        result = `Вы уже зарегистрированы в очереди.`;
-      }
-    } else {
+  if (userExists(uid))
+    if (classesRun())
+      if (!queue.has(uid)) {
+        queue.enqueue(uid)
+        result = `Ваш номер в очереди - ${queue.getLength()}.`
+      } else result = `Вы уже зарегистрированы в очереди.`
+    else
       result = `Сейчас нет пар, поэтому вы не можете занять очередь.`
-    }
-  } else {
-    result = `Похоже вы не зарегистрированы в боте. Введите команду /start.`;
-  }
-  return result;
-}
+  else
+    result = `Похоже вы не зарегистрированы в боте. Введите команду /start.`
 
-function popFirst() {
-  line = line.reverse();
-  line.pop();
-  line = line.reverse();
+  return result
 }
 
 function getJSONForInline() {
-  let jsonArr = [];
-  for (let i = 0; i < line.length; i++) {
+  let jsonArr = []
+  queue.each((el, i) =>
     jsonArr.push([
       {
-        text: i + 1 + " - " + findUserByUID(line[i]).name,
-        callback_data: line[i]
+        text: i + 1 + ' - ' + findUserByUID(el).name,
+        callback_data: el
       }
-    ]);
-  }
+    ])
+  )
   jsonArr.push([
     {
-      text: "Отмена",
+      text: 'Отмена',
       callback_data: -1
     }
-  ]);
+  ])
   return {
-    reply_markup: { inline_keyboard: jsonArr, one_time_keyboard: true }
-  };
+    reply_markup: {
+      inline_keyboard: jsonArr,
+      one_time_keyboard: true
+    }
+  }
 }
 
 function isAdmin(uid) {
-  return findUserByUID(uid).admin === 1;
+  return findUserByUID(uid).admin === 1
 }
 
 function popByUIDAdmin(uid) {
-  let result;
+  let result
 
   if (isAdmin(uid)) {
-    if (line.length !== 0) {
-      result = { msg: `Выберите кого удалить:`, json: getJSONForInline() };
+    if (!queue.isEmpty()) {
+      result = {
+        msg: `Выберите кого удалить:`,
+        json: getJSONForInline()
+      }
     } else {
-      result = `Очередь пустая, удалять некого.`;
+      result = `Очередь пустая, удалять некого.`
     }
   } else {
-    result = `Вам недоступна эта команда.`;
+    result = `Вам недоступна эта команда.`
   }
-  return result;
+  return result
 }
 
 function popByUID(uid) {
-  if (typeof uid !== "number") uid = parseInt(uid);
-  let index = line.indexOf(uid);
-  let result;
+  if (typeof uid !== 'number') uid = parseInt(uid)
+  let result
 
-  if (index !== -1) {
-    line.splice(index, 1);
-    result = `Вы успешно вышли из очереди.`;
+  if (queue.getHead() === uid) {
+    queue.pop()
+    result = `Вы успешно вышли из очереди.`
   } else {
-    result = `Вы не зарегистрированы в очереди.`;
+    result = `Вы или либо не зарегистрированы в очереди, либо не первый из списка.`
   }
-  return result;
+  return result
 }
 
 function whoIsNow() {
-  return line[0];
+  return queue.getHead()
 }
 
-module.exports = {
+export default {
   help,
   getList,
   getNameByUID,
   popbyUIDAdmin: popByUIDAdmin,
   start,
-  getJSONforInline: getJSONForInline,
+  getJSONForInline,
   popByUID,
-  popFirst,
   whoIsNow,
   getInLine
-};
+}
